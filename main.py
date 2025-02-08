@@ -31,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 Base.metadata.create_all(bind=engine)
 
-
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Определение модели SQLAlchemy для пользователя
 class User(Base):
     __tablename__ = "users"
@@ -42,11 +42,8 @@ class User(Base):
     hashed_password = Column(String(100))
     disabled = Column(Boolean, default=False)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
 # Создание таблиц в базе данных
-
+Base.metadata.create_all(bind=engine)
 
 # Определение Pydantic модели для пользователя
 class UserCreate(BaseModel):
@@ -55,6 +52,12 @@ class UserCreate(BaseModel):
     full_name: str | None = None
     password: str
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: str | None = None
 
 class UserUpdate(BaseModel):
     username: str | None = None
@@ -62,8 +65,6 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     password: str | None = None
     disabled: bool | None = None
-
-
 
 class UserResponse(BaseModel):
     id: int
@@ -74,24 +75,6 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-class UserInDB(UserResponse):
-    hashed_password: str
-
-    class Config:
-        from_attributes = True
-        # v2
-        # orm_mode = True
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-        username: str | None = None
-
-
-
 # Зависимость для получения сессии базы данных
 def get_db():
     db = SessionLocal()
@@ -100,12 +83,7 @@ def get_db():
     finally:
         db.close()
 
-def fake_decode_token(token):
-    return User(
-        username=token + "fakedecoded", email="john@example.com", full_name="John Doe"
-    )
-        
-
+# Получение текущего пользователя по токену
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -125,67 +103,43 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
         raise credentials_exception
     return user
 
-
 async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-
-
-def get_users(db: Session = Depends(get_db)):
-    users = db.query(User).all()
-    if not users:
-        raise HTTPException(status_code=404, detail="Users not found")
-    return users
-
 # Маршрут для получения пользователя по ID
-
-
-
-
-
-
-
-def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt()
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed_password.decode('utf-8')
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-
 def get_user(user_name: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == user_name).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+@app.get("/users/", response_model=list[UserResponse])
+async def get_users(current_user: Annotated[User, Depends(get_current_active_user)], db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="Users not found")
+    return users
 
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_password.decode('utf-8')
 
-def fake_decode_token(token: str, db: Session):
-    user = get_user_by_username(db, token)
-    return user
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 def authenticate_user(db: Session, username: str, password: str):
-    user = get_user( username,db,)
+    user = get_user(user_name=username, db=db)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
         return False
     return user
-
-
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -197,61 +151,50 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
-
-def hash_password(password: str):
-    return "fakehashed" + password
-
-
-
-# Маршрут для создания нового пользователя
-
-
-    
-    
-
-
 # Маршрут для удаления пользователя по ID
 @app.delete("/users/{user_id}", response_model=UserResponse)
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+async def delete_user(user_id: int, current_user: Annotated[User, Depends(get_current_active_user)], db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     db.delete(user)
     db.commit()
     return user
 
 # Маршрут для обновления пользователя
 @app.put("/users/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+async def update_user(user_id: int, user_update: UserUpdate, current_user: Annotated[User, Depends(get_current_active_user)], db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    if user_update.name:
-        user.name = user_update.name
+
+    if user_update.username:
+        user.username = user_update.username
     if user_update.email:
         user.email = user_update.email
-    
+    if user_update.full_name:
+        user.full_name = user_update.full_name
+    if user_update.password:
+        user.hashed_password = get_password_hash(user_update.password)
+    if user_update.disabled is not None:
+        user.disabled = user_update.disabled
+
     try:
         db.commit()
         db.refresh(user)
         return user
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
+        raise HTTPException(status_code=400, detail="Username or Email already registered")
+
 @app.get("/items/")
 async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
 
-
-
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
-    print(user)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -264,38 +207,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-
-
-
-
-
-@app.put("/users/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user_update.username:
-        user.username = user_update.username
-    if user_update.email:
-        user.email = user_update.email
-    if user_update.full_name:
-        user.full_name = user_update.full_name
-    if user_update.password:
-        user.hashed_password = hash_password(user_update.password)
-    if user_update.disabled is not None:
-        user.disabled = user_update.disabled
-    try:
-        db.commit()
-        db.refresh(user)
-        return user
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Username or Email already registered")
-    
+@app.get("/users/me", response_model=UserResponse)
+async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
+    return current_user
 
 @app.post("/register/", response_model=UserResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    hashed_password = hash_password(user.password)
+    hashed_password = get_password_hash(user.password)
     db_user = User(
         username=user.username,
         email=user.email,
@@ -310,28 +228,6 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Username or Email already registered")
-@app.get("/users/me")
-async def read_users_me(current_user: Annotated[User,Depends(get_current_user)]):
-    return current_user
-
-@app.get("/users/{user_id}", response_model=UserResponse)
-def get_users(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-# Delete
-
-@app.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    db.delete(user)  
-    db.commit()      
-    return {"detail": "User deleted successfully"}
 
 
 
