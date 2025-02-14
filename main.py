@@ -11,11 +11,32 @@ from passlib.context import CryptContext
 import jwt
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 
 
 
 # Создание объекта FastAPI
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+origins = [
+"http://localhost.tiangolo.com",
+"https://localhost.tiangolo.com",
+"http://localhost",
+"http://localhost:8080",
+]
+app.add_middleware(
+CORSMiddleware,
+allow_origins=["*"],
+# allow_origins=origins,
+allow_credentials=True,
+allow_methods=["*"],
+allow_headers=["*"],
+)
+
 
 # Настройка базы данных MySQL
 SQLALCHEMY_DATABASE_URL = "mysql+pymysql://isp_r_Basov:12345@77.91.86.135/isp_r_Basov"
@@ -108,6 +129,11 @@ async def get_current_active_user(current_user: Annotated[User, Depends(get_curr
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+@app.get("/", response_class=HTMLResponse)
+async def get_client():
+   with open("static/index.html", "r") as file:
+      return file.read()
+
 # Маршрут для получения пользователя по ID
 def get_user(user_name: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == user_name).first()
@@ -116,7 +142,7 @@ def get_user(user_name: str, db: Session = Depends(get_db)):
     return user
 
 @app.get("/users/", response_model=list[UserResponse])
-async def get_users(current_user: Annotated[User, Depends(get_current_active_user)], db: Session = Depends(get_db)):
+async def get_users( db: Session = Depends(get_db)):
     users = db.query(User).all()
     if not users:
         raise HTTPException(status_code=404, detail="Users not found")
