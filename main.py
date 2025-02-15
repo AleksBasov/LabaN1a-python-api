@@ -1,7 +1,7 @@
 from typing import Annotated
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Response, Request
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +11,8 @@ from passlib.context import CryptContext
 import jwt
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
