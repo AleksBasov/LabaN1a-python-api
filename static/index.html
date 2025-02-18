@@ -1,273 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<!-- Устанавливает кодировку символов для страницы в UTF-8 -->
-<meta charset="UTF-8" />
-<!-- Устанавливает метатег viewport для управления макетом страницы на
-мобильных устройствах -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<!-- Заголовок страницы, отображаемый на вкладке браузера -->
-<title>User Management</title>
-<link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-<!-- Основной заголовок страницы -->
-<h1>User Management</h1>
-<!-- Раздел для отображения списка пользователей -->
-<div>
-<!-- Заголовок для списка пользователей -->
-<h2>Users</h2>
-<!-- Ненумерованный список, в который будет добавлен список пользователей
--->
-<ul id="user-list"></ul>
-</div>
-<!-- Раздел для создания нового пользователя -->
-<div>
-<!-- Заголовок для формы создания пользователя -->
-<h2>Create User</h2>
-<!-- Форма для создания нового пользователя -->
-<form id="create-user-form">
-<!-- Поле ввода для имени пользователя -->
-<input type="text" id="username" placeholder="Username" required />
-<!-- Поле ввода для email пользователя -->
-<input type="email" id="email" placeholder="Email" required />
-<!-- Поле ввода для полного имени пользователя -->
-<input type="text" id="full_name" placeholder="Full Name" />
-<!-- Поле ввода для пароля пользователя -->
-<input type="password" id="password" placeholder="Password" required />
-<!-- Кнопка для отправки формы и создания пользователя -->
-<button type="submit">Create User</button>
-</form>
-</div>
-<!-- Раздел для обновления существующего пользователя -->
-<div>
-<!-- Заголовок для формы обновления пользователя -->
-<h2>Update User</h2>
-<!-- Форма для обновления данных пользователя -->
-<form id="update-user-form">
-<!-- Поле ввода для ID пользователя, которого нужно обновить -->
-<input type="number" id="update-user-id" placeholder="User ID" required
-/>
-<!-- Поле ввода для нового имени пользователя -->
-<input type="text" id="update-username" placeholder="Username" />
-<!-- Поле ввода для нового email пользователя -->
-<input type="email" id="update-email" placeholder="Email" />
-<!-- Поле ввода для нового полного имени пользователя -->
-<input type="text" id="update-full_name" placeholder="Full Name" />
-<!-- Поле ввода для нового пароля пользователя -->
-<input type="password" id="update-password" placeholder="Password" />
-<!-- Кнопка для отправки формы и обновления пользователя -->
-<button type="submit">Update User</button>
-</form>
-</div>
-<!-- Раздел для удаления пользователя -->
-<div>
-<!-- Заголовок для формы удаления пользователя -->
-<h2>Delete User</h2>
-<!-- Форма для удаления пользователя по ID -->
-<form id="delete-user-form">
-<!-- Поле ввода для ID пользователя, которого нужно удалить -->
-<input type="number" id="delete-user-id" placeholder="User ID" required
-/>
-<!-- Кнопка для отправки формы и удаления пользователя -->
-<button type="submit">Delete User</button>
-</form>
-</div>
-
-<div>
-    <h2>Authorization</h2>
-    <form id="login-form">
-        <input type="text" placeholder="Login"> <br>
-        <input type="password" placeholder="Password"> <br>
-        <button type="submit">Login User</button>
-    </form>
-
-    <form class="form" id="users-me-form" method="post">
-        <legend>Get info for me</legend>
-        <button>Get</button>
-    </form>
-    <div id="user-info"></div>
-</div> 
-
-
-
-
-
-
-
-<script>
-
-    
-const apiBaseUrl = "http://127.0.0.1:8000";
-let access_token;
-// Асинхронная функция для получения списка пользователей и обновления HTML - списка;
-document.getElementById("login-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  let username = document.getElementById("login").value;
-  let password = document.getElementById("password").value;
-  const formData = new FormData();
-  formData.append("grant_type", "password"); // добавляем grant_type
-  formData.append("username", username); // добавляем имя пользователя
-  formData.append("password", password); // добавляем пароль
-  const response = await fetch(`${apiBaseUrl}/token`, {
-    method: "POST",
-    body: formData,
-  });
-  const token = await response.json();
-  access_token = token.access_token;
-  fetchUsers();
-});
-
-async function fetchUsers() {
-  // Выполняем GET-запрос к API для получения списка пользователей
-  const response = await fetch(`${apiBaseUrl}/users/`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${access_token}`,
-    },
-  });
-  // Преобразуем ответ в JSON-формат
-  const users = await response.json();
-  // Получаем элемент списка пользователей по его ID
-  const userList = document.getElementById("user-list");
-  // Очищаем текущий список пользователей
-  userList.innerHTML = "";
-  // Проходим по каждому пользователю и добавляем его в HTML-список
-  users.forEach((user) => {
-    const li = document.createElement("li");
-    li.textContent = `${user.id}: ${user.username} (${user.email})`;
-    userList.appendChild(li);
-  });
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>User Management</title>
+    </head>
+    <style>
+       
+      
+       body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
 }
-// Обработчик события отправки формы создания пользователя
-document
-  .getElementById("create-user-form")
-  .addEventListener("submit", async (e) => {
-    // Предотвращаем стандартное поведение формы (перезагрузку страницы)
-    e.preventDefault();
-    // Получаем значения полей формы
-    const username = document.getElementById("username").value;
-    const email = document.getElementById("email").value;
-    const full_name = document.getElementById("full_name").value;
-    const password = document.getElementById("password").value;
 
-    // Отправляем POST-запрос на сервер для создания нового пользователя
-    const response = await fetch(`${apiBaseUrl}/register/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, email, full_name, password }),
-    });
 
-    // Проверяем успешность операции и показываем сообщение пользователю
-    if (response.ok) {
-      alert("User created successfully");
-      // Обновляем список пользователей
-      fetchUsers();
-    } else {
-      alert("Error creating user");
-    }
-  });
+h1 {
+    text-align: center;
+    color: #333;
+}
 
-// Обработчик события отправки формы обновления пользователя
-document
-  .getElementById("update-user-form")
-  .addEventListener("submit", async (e) => {
-    // Предотвращаем стандартное поведение формы
-    e.preventDefault();
-    // Получаем значения полей формы
-    const userId = document.getElementById("update-user-id").value;
+h2 {
+    color: #555;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+}
 
-    const username = document.getElementById("update-username").value;
-    const email = document.getElementById("update-email").value;
-    const full_name = document.getElementById("update-full_name").value;
-    const password = document.getElementById("update-password").value;
 
-    // Отправляем PUT-запрос на сервер для обновления данных пользователя
-    const response = await fetch(`${apiBaseUrl}/users/${userId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
-      body: JSON.stringify({ username, email, full_name, password }),
-    });
+div {
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    padding: 20px;
+    width: 650px;
+}
 
-    // Проверяем успешность операции и показываем сообщение пользователю
-    if (response.ok) {
-      alert("User updated successfully");
-      // Обновляем список пользователей
-      fetchUsers();
-    } else {
-      alert("Error updating user");
-    }
-  });
 
-document
-  .getElementById("users-me-form")
-  .addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const response = await fetch(`${apiBaseUrl}/users/me`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
-    });
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-    // Проверяем успешность операции и показываем сообщение пользователю
-    if (response.ok) {
-      alert("User successfully get info");
-      const info = await response.json();
-      console.log(info);
-      const userInfoDiv = document.getElementById("user-info");
 
-      // Создаем и добавляем элементы для отображения данных пользователя
-      for (const [key, value] of Object.entries(info)) {
-        const p = document.createElement("p");
-        p.textContent = `${key}: ${value}`;
-        userInfoDiv.appendChild(p);
-      }
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"] {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
 
-      // Обновляем список пользователей
-      fetchUsers();
-    } else {
-      alert("Error getting info for user");
-    }
-  });
 
-// Обработчик события отправки формы удаления пользователя
-document
-  .getElementById("delete-user-form")
-  .addEventListener("submit", async (e) => {
-    // Предотвращаем стандартное поведение формы
-    e.preventDefault();
-    // Получаем ID пользователя для удаления
-    const userId = document.getElementById("delete-user-id").value;
+button {
+    padding: 10px;
+    background-color: #28a745; 
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
 
-    // Отправляем DELETE-запрос на сервер для удаления пользователя
-    const response = await fetch(`${apiBaseUrl}/users/${userId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    });
+button:hover {
+    background-color: #218838; 
+}
 
-    // Проверяем успешность операции и показываем сообщение пользователю
-    if (response.ok) {
-      alert("User deleted successfully");
-      // Обновляем список пользователей
-      fetchUsers();
-    } else {
-      alert("Error deleting user");
-    }
-  });
 
-// При загрузке страницы выполняем начальное получение списка пользователей
+#user-list {
+    list-style-type: none; 
+    padding: 0;
+}
 
-</script>
+#user-list li {
+    padding: 10px;
+    border-bottom: 1px solid #ddd; 
+}
 
-</body>
+
+.alert {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background-color: #d4edda; 
+    color: #155724; 
+}
+
+.alert-error {
+    background-color: #f8d7da; 
+    color: #721c24; 
+}
+
+
+    </style>
+
+    <body>
+        <!-- Основной заголовок страницы -->
+        <h1>Personal cabinet</h1>
+
+        <div class="personal">
+            <h1>Login</h1>
+            <form
+                class="form"
+                id="login-form"
+                method="post"
+                enctype="multipart/form-data"
+            >
+                <legend>Auth</legend>
+                <input type="text" id="login" placeholder="login" />
+                <input placeholder="password" type="password" id="password" />
+                <button>Login</button>
+            </form>
+            <form class="form" id="users-me-form" method="post">
+                <legend>Get info for me</legend>
+                <button>Get</button>
+            </form>
+            <div id="user-info"></div>
+        </div>
+        <hr />
+        <!-- Раздел для отображения списка пользователей -->
+        <div>
+            <!-- Заголовок для списка пользователей -->
+            <h1>Users Management</h1>
+            <!-- Ненумерованный список, в который будет добавлен список пользователей
+-->
+
+            <ul id="user-list"></ul>
+        </div>
+
+        <!-- Раздел для создания нового пользователя -->
+        <section class="grid">
+            <div>
+                <!-- Заголовок для формы создания пользователя -->
+                <!-- Форма для создания нового пользователя -->
+                <form class="form" id="create-user-form">
+                    <legend>Create User</legend>
+                    <!-- Поле ввода для имени пользователя -->
+                    <input
+                        type="text"
+                        id="username"
+                        placeholder="Username"
+                        required
+                    />
+                    <!-- Поле ввода для email пользователя -->
+                    <input
+                        type="email"
+                        id="email"
+                        placeholder="Email"
+                        required
+                    />
+                    <!-- Поле ввода для полного имени пользователя -->
+                    <input type="text" id="full_name" placeholder="Full Name" />
+                    <!-- Поле ввода для пароля пользователя -->
+                    <input
+                        type="password"
+                        id="password"
+                        placeholder="Password"
+                        required
+                    />
+                    <!-- Кнопка для отправки формы и создания пользователя -->
+                    <button type="submit">Create User</button>
+                </form>
+            </div>
+
+            <!-- Раздел для обновления существующего пользователя -->
+            <div>
+                <!-- Заголовок для формы обновления пользователя -->
+                <!-- Форма для обновления данных пользователя -->
+                <form class="form" id="update-user-form">
+                    <legend>Update User</legend>
+
+                    <!-- Поле ввода для ID пользователя, которого нужно обновить -->
+                    <input
+                        type="number"
+                        id="update-user-id"
+                        placeholder="User ID"
+                        required
+                    />
+                    <!-- Поле ввода для нового имени пользователя -->
+                    <input
+                        type="text"
+                        id="update-username"
+                        placeholder="Username"
+                    />
+                    <!-- Поле ввода для нового email пользователя -->
+                    <input type="email" id="update-email" placeholder="Email" />
+                    <!-- Поле ввода для нового полного имени пользователя -->
+
+                    <input
+                        type="text"
+                        id="update-full_name"
+                        placeholder="Full Name"
+                    />
+                    <!-- Поле ввода для нового пароля пользователя -->
+                    <input
+                        type="password"
+                        id="update-password"
+                        placeholder="Password"
+                    />
+                    <!-- Кнопка для отправки формы и обновления пользователя -->
+                    <button type="submit">Update User</button>
+                </form>
+            </div>
+
+            <!-- Раздел для удаления пользователя -->
+            <div>
+                <!-- Заголовок для формы удаления пользователя -->
+                <!-- Форма для удаления пользователя по ID -->
+                <form class="form" id="delete-user-form">
+                    <legend>Delete User</legend>
+
+                    <!-- Поле ввода для ID пользователя, которого нужно удалить -->
+                    <input
+                        type="number"
+                        id="delete-user-id"
+                        placeholder="User ID"
+                        required
+                    />
+                    <!-- Кнопка для отправки формы и удаления пользователя -->
+                    <button type="submit">Delete User</button>
+                </form>
+            </div>
+        </section>
+
+        <script src="/static/script.js" type="text/javascript"></script>
+    </body>
 </html>
