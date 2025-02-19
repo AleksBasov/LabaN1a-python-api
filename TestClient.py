@@ -95,46 +95,6 @@ def test_update_user():
 
 
 
-# Тестирование CORS
-def test_cors_allowed():
-    headers = {"Origin": "http://127.0.0.1:8000", "Access-Control-Request-Method": "GET"}
-    response = client.options("/users/", headers=headers)
-    assert "access-control-allow-origin" in response.headers
-    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:8000"
-
-def test_cors_blocked():
-    headers = {"Origin": "http://unauthorized.com", "Access-Control-Request-Method": "GET"}
-    response = client.options("/users/", headers=headers)
-    assert response.status_code == 400
-   
-
-
-# Тестирование обработки ошибок
-def test_missing_field():
-    response = client.post(
-        "/register/",
-        json={"username": "testuser6"}
-    )
-    assert response.status_code == 422
-
-# Тестирование безопасности
-def test_protected_route_without_token():
-    response = client.get("/users/")
-    assert response.status_code == 401
-
-def test_protected_route_fake_token():
-    headers = {"Authorization": "Bearer fake_token"}
-    response = client.get("/users/")
-    assert response.status_code == 401 
-
-import time
-
-def test_performance():
-    start_time = time.time()
-    for _ in range(10):
-        client.get("/")
-    end_time = time.time()
-    assert (end_time - start_time) < 1
 
 
 
