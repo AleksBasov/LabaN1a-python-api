@@ -23,6 +23,6 @@ EXPOSE 8000
 
 
 # Команда для запуска FastAPI с использованием uvicorn
-CMD ["uvicorn", "master:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
