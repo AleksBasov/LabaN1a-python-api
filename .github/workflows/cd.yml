@@ -2,7 +2,7 @@ name: Continuous Integration and Deployment
 
 on:
     push:
-      branches: ["*"]  # Будет срабатывать на все ветки
+      branches: ["*"]  
     pull_request:
       branches: ["*"]
 
@@ -26,7 +26,7 @@ jobs:
         run: npm install
         
       - name: Run tests
-        run: python -m pytest TestClient.py  
+        run: python -m pytest tests/TestClient.py
 
   build-and-push-image:
     needs: test  # Зависит от успешного выполнения job 'test'
@@ -64,6 +64,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}  # Не пушим при PR
+          push: ${{ github.event_name != 'pull_request' }}  
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
