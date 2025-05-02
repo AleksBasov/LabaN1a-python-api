@@ -1,11 +1,10 @@
 name: Continuous Integration and Deployment
 
 on:
-  push:
-    branches: ["docker"]
-    tags: ['v*']  # Срабатывает на теги, начинающиеся с 'v'
-  pull_request:
-    branches: ["docker"]
+    push:
+      branches: ["*"]  # Будет срабатывать на все ветки
+    pull_request:
+      branches: ["*"]
 
 env:
   REGISTRY: ghcr.io
