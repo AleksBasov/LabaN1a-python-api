@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13-alpine'  # Укажите нужную версию Python
+          python-version: '3.10'  # Укажите нужную версию Python
           
       - name: Install Python dependencies
         run: |
